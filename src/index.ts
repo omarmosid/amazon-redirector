@@ -7,27 +7,51 @@ const regionDomainMap: Record<string, string> = {
   us: "amazon.com",
   uk: "amazon.co.uk",
   in: "amazon.in",
+  ca: "amazon.ca",
+  de: "amazon.de",
+  nl: "amazon.nl",
+  es: "amazon.es",
+  sg: "amazon.sg",
 };
 
 const cfCountryRegionMap: Record<string, string> = {
   GB: "uk",
   US: "us",
   IN: "in",
+  CA: "ca",
+  DE: "de",
+  NL: "nl",
+  ES: "es",
+  SG: "sg",
+};
+
+const countryNameMap: Record<string, string> = {
+  us: "United States",
+  uk: "United Kingdom",
+  in: "India",
+  ca: "Canada",
+  de: "Germany",
+  nl: "Netherlands",
+  es: "Spain",
+  sg: "Singapore",
 };
 
 const defaultDomain = regionDomainMap["us"];
 
-const getDomain = (countryCode: unknown) => {
-  if (!countryCode) return;
-  const region = cfCountryRegionMap[countryCode as string];
-  if (!region) return;
-  else return regionDomainMap[region];
+const extractAmazonProductId = (url?: string) => {
+  if (!url) return;
+  const regex =
+    /(?:\/dp\/|\/gp\/product\/|\/gp\/offer-listing\/|\/ASIN\/)([A-Z0-9]{10})/;
+  const match = url.match(regex);
+  return match ? match[1] : null;
 };
 
 app.get("/", (c) => {
+  const originCountry = c.req.raw.cf?.country;
+  const originRegion = cfCountryRegionMap[originCountry as string] || "us";
+
   return c.html(
-    html`
-      <!DOCTYPE html>
+    html` <!DOCTYPE html>
       <html lang="en">
         <head>
           <meta charset="UTF-8" />
@@ -36,61 +60,88 @@ app.get("/", (c) => {
             content="width=device-width, initial-scale=1.0"
           />
           <title>Amazon Link Redirector</title>
+          <script src="https://cdn.tailwindcss.com"></script>
+          <script>
+            function validateForm() {
+              const url = document.getElementById('product-url').value;
+              const regex = /(?:https?://)?(?:www.)?amazon.[a-z.]+/(?:dp|gp/product|gp/offer-listing|ASIN)/[A-Z0-9]{10}/;
+              if (!regex.test(url)) {
+                alert('Please enter a valid Amazon product URL');
+                return false;
+              }
+              return true;
+            }
+          </script>
         </head>
-        <body>
-          <h1>Amazon Link Redirector</h1>
-          <form action="/r" method="GET">
-            <div>
-              <label for="amazon-id">Search by Amazon ID</label>
-            </div>
-            <div>
-              <input type="text" id="amazon-id" name="id" required />
-              <button type="submit">Go</button>
-            </div>
-          </form>
+        <body class="bg-gray-100 min-h-screen flex items-center justify-center">
+          <div class="bg-white p-8 rounded shadow-md w-full max-w-md">
+            <h1 class="text-2xl font-bold mb-6 text-center">
+              Amazon Link Redirector
+            </h1>
+            <form action="/r" method="GET" onsubmit="return validateForm()">
+              <div class="mb-4">
+                <label for="product-url" class="block text-gray-700"
+                  >Amazon Product URL</label
+                >
+                <input
+                  type="text"
+                  id="product-url"
+                  name="url"
+                  required
+                  class="w-full px-4 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300"
+                />
+              </div>
+              <div class="mb-4">
+                <label for="country" class="block text-gray-700"
+                  >Select Country</label
+                >
+                <select
+                  id="country"
+                  name="country"
+                  class="w-full px-4 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300"
+                >
+                  <option value="">
+                    Use my location - ${countryNameMap[originRegion]}
+                  </option>
+                  ${Object.entries(regionDomainMap).map(
+                    ([region, domain]) =>
+                      html`<option value="${region}">
+                        ${countryNameMap[region]}
+                      </option>`
+                  )}
+                </select>
+              </div>
+              <div class="text-center">
+                <button
+                  type="submit"
+                  class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                >
+                  Go
+                </button>
+              </div>
+            </form>
+          </div>
         </body>
-      </html>
-    `
+      </html>`
   );
 });
 
 app.get("/r", (c) => {
-  const id = c.req.query("id");
+  const productUrl = c.req.query("url");
+  const selectedCountry = c.req.query("country");
   const originCountry = c.req.raw.cf?.country;
-  const domain = getDomain(originCountry);
 
-  if (!id) {
+  const productId = extractAmazonProductId(productUrl);
+
+  if (!productId) {
     c.status(400);
-    return c.json({ msg: "Error. No ID supplied as URL Param" });
+    return c.json({ msg: "Error. Invalid Amazon product URL" });
   }
 
-  if (!domain) {
-    return c.redirect(`https://${defaultDomain}/dp/${id}`);
-  }
-  return c.redirect(`https://${domain}/dp/${id}`);
-});
+  const region = selectedCountry || cfCountryRegionMap[originCountry as string];
+  const domain = regionDomainMap[region] || defaultDomain;
 
-app.get("/r/:id/:region", (c) => {
-  const { id, region } = c.req.param();
-
-  if (!id) {
-    c.status(400);
-    return c.json({
-      msg: "Error. No ID supplied as URL Param",
-    });
-  }
-
-  if (!region) {
-    return c.redirect(`https://${defaultDomain}/dp/${id}`);
-  }
-
-  const domain = regionDomainMap[region];
-
-  if (domain) {
-    return c.redirect(`https://${domain}/dp/${id}`);
-  } else {
-    return c.redirect(`https://${defaultDomain}/dp/${id}`);
-  }
+  return c.redirect(`https://${domain}/dp/${productId}`);
 });
 
 export default app;
