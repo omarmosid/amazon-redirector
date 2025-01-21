@@ -60,6 +60,10 @@ app.get("/", (c) => {
             content="width=device-width, initial-scale=1.0"
           />
           <title>Amazon Link Redirector</title>
+          <meta
+            name="description"
+            content="Redirect to the correct Amazon region based on your location or chosen country. Simplify your shopping experience with our easy-to-use Amazon Link Redirector."
+          />
           <script src="https://cdn.tailwindcss.com"></script>
           <script>
             function validateForm() {
@@ -78,6 +82,11 @@ app.get("/", (c) => {
             <h1 class="text-2xl font-bold mb-6 text-center">
               Amazon Link Redirector
             </h1>
+            <p class="items-center my-4">
+              Easily find the right Amazon product in your region. Enter a
+              product URL, choose a country, and we'll take you straight to the
+              correct Amazon site for a seamless shopping experience.
+            </p>
             <form action="/r" method="GET" onsubmit="return validateForm()">
               <div class="mb-4">
                 <label for="product-url" class="block text-gray-700"
