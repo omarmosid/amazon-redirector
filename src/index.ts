@@ -28,27 +28,41 @@ app.get("/", (c) => {
   return c.html(
     html`
       <!DOCTYPE html>
-      <head>
-        <title>Amazon Link Redirector</title>
-      </head>
-      <body>
-        <h1>Amazon Link Redirector</h1>
-        <div>
-          <label>Search by Amazon ID</label>
-        </div>
-        <div>
-          <input />
-          <button>Go</button>
-        </div>
-      </body>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8" />
+          <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0"
+          />
+          <title>Amazon Link Redirector</title>
+        </head>
+        <body>
+          <h1>Amazon Link Redirector</h1>
+          <form action="/r" method="GET">
+            <div>
+              <label for="amazon-id">Search by Amazon ID</label>
+            </div>
+            <div>
+              <input type="text" id="amazon-id" name="id" required />
+              <button type="submit">Go</button>
+            </div>
+          </form>
+        </body>
+      </html>
     `
   );
 });
 
-app.get("/r/:id", (c) => {
-  const { id } = c.req.param();
+app.get("/r", (c) => {
+  const id = c.req.query("id");
   const originCountry = c.req.raw.cf?.country;
   const domain = getDomain(originCountry);
+
+  if (!id) {
+    c.status(400);
+    return c.json({ msg: "Error. No ID supplied as URL Param" });
+  }
 
   if (!domain) {
     return c.redirect(`https://${defaultDomain}/dp/${id}`);
